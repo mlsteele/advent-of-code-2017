@@ -15,7 +15,7 @@ fn main2() -> Result<()> {
     };
 
     let digits: Vec<i64> = parse(&instr)?;
-    let answer = q1(digits);
+    let answer = q1p2(digits);
     println!("{}", answer);
     Ok(())
 }
@@ -36,13 +36,30 @@ fn parse(s: &str) -> Result<Vec<i64>> {
     return Ok(res);
 }
 
-fn q1(s: Vec<i64>) -> i64 {
+#[allow(dead_code)]
+fn q1p1(s: Vec<i64>) -> i64 {
     if s.is_empty() {
         return 0
     }
     let first: i64 = s[0];
     let z1 = s.iter();
     let z2 = s.iter().skip(1).chain(std::iter::once(&first));
+    z1.zip(z2).filter_map(|(x, y)| {
+        if x == y {
+            Some(x)
+        } else {
+            None
+        }
+    }).sum()
+}
+
+fn q1p2(s: Vec<i64>) -> i64 {
+    if s.is_empty() {
+        return 0
+    }
+    let ahead = s.len() / 2 as usize;
+    let z1 = s.iter();
+    let z2 = s.iter().cycle().skip(ahead).take(s.len());
     z1.zip(z2).filter_map(|(x, y)| {
         if x == y {
             Some(x)
