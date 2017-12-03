@@ -10,7 +10,7 @@ fn main() {
 fn main2() -> Result<()> {
     let intxt = read_file("input.txt")?;
     let sheet = parse(&intxt)?;
-    let answer = q2p1(sheet);
+    let answer = q2p2(sheet);
     println!("{}", answer);
     Ok(())
 }
@@ -44,6 +44,7 @@ fn parse(s: &str) -> Result<Vec<Vec<i64>>> {
     Ok(sheet)
 }
 
+#[allow(dead_code)]
 fn q2p1(sheet: Vec<Vec<i64>>) -> i64 {
     sheet.iter().map(|line| {
         if !line.is_empty() {
@@ -51,5 +52,23 @@ fn q2p1(sheet: Vec<Vec<i64>>) -> i64 {
         } else {
             0
         }
+    }).sum()
+}
+
+fn q2p2(sheet: Vec<Vec<i64>>) -> i64 {
+    sheet.iter().map(|line| {
+        if line.is_empty() {
+            return 0;
+        }
+        let mut line = line.clone();
+        line.sort_unstable();
+        for (i, a) in line.iter().enumerate() {
+            for b in line.split_at(i+1).1.iter() {
+                if b % a == 0 {
+                    return b / a;
+                }
+            }
+        }
+        panic!("you promised there would be an evenly divisible pair")
     }).sum()
 }
