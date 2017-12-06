@@ -49,7 +49,12 @@ fn q5p1(mut tape: Vec<i64>) -> i64 {
     while pc >= 0 && pc < tape.len() as i64 {
         tick += 1;
         let jump = tape[pc as usize];
-        tape[pc as usize] += 1;
+        let change = if jump >= 3 {
+            -1
+        } else {
+            1
+        };
+        tape[pc as usize] += change;
         pc += jump;
     }
     tick
