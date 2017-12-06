@@ -18,7 +18,7 @@ fn main() {
 fn main2() -> Result<()> {
     let intxt = read_file("input.txt")?;
     let area = parse(&intxt)?;
-    let answer = q6p1(area);
+    let answer = q6p2(area);
     println!("{}", answer);
     Ok(())
 }
@@ -50,6 +50,7 @@ fn parse(s: &str) -> Result<Area> {
 }
 
 // Number of rounds before a dup
+#[allow(dead_code)]
 fn q6p1(a: Area) -> i64 {
     let mut a = Wrap::new(a);
     let mut seen = HashSet::new();
@@ -59,6 +60,30 @@ fn q6p1(a: Area) -> i64 {
             return round
         }
         a.mutate(balancer_round);
+    };
+    unreachable!();
+}
+
+// Number of rounds until the second sight of the first dup
+fn q6p2(a: Area) -> i64 {
+    let mut a = Wrap::new(a);
+    let mut seen = HashSet::new();
+    for _ in 0.. {
+        println!("{:?}", a.as_ref());
+        if seen.replace(a.as_ref().clone()).is_some() {
+            break;
+        }
+        a.mutate(balancer_round);
+    };
+    let seeking = a.as_ref().clone();
+    println!("found {:?}", seeking);
+    // Look again
+    for round in 1.. {
+        println!("{:?}", a.as_ref());
+        a.mutate(balancer_round);
+        if *a.as_ref() == seeking {
+            return round
+        }
     };
     unreachable!();
 }
