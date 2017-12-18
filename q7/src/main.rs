@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap,HashSet};
 
 type Name = String;
 type Shouts = Vec<(Name, i64, Vec<Name>)>;
@@ -68,4 +68,50 @@ fn q7p1(shouts: Shouts) -> Name {
         panic!("unexpected unreferenced node count {}", diff.len())
     }
     (*diff.first().unwrap()).to_owned()
+}
+
+#[allow(dead_code)]
+fn q7p2(shouts: Shouts) {
+    // X supports {Ys}
+    let mut supports: HashMap<Name, HashSet<Name>> = HashMap::new();
+    // X weighs y
+    let mut weight: HashMap<Name, i64> = HashMap::new();
+    for (name, weight, supportees) in shouts {
+        weight.insert(name, weight);
+        for supportee in supportees.iter() {
+            merge(supports, name, supportees);
+        }
+    }
+
+    // X's subtree weights y
+    let mut cumweight: HashMap<Name, i64> = HashSet::new();
+    while cumweight.len() < shouts.len() {
+        for (name, weight, supportees) in shouts {
+            let cw = supportees.iter().map(|child| {
+                cumweight.get(child)
+            }).fold(Some(0), |acc, child_weight| {
+                add_opts(acc, child_weight)
+            });
+            if let Some(cw) = cw {
+                cumweight.insert(name, cw);
+            }
+        }
+    }
+}
+
+/// Add `val` to the the set at `map[key]`
+fn merge<M,K,V>(&mut map: M, key: K, val: V)
+    where M: HashMap<K, HashSet<V>>
+{
+    if let Some(set) = map.get_mut(key) {
+        set.insert(val);
+        return;
+    }
+    let mut set = HashSet::new();
+    set.insert(val);
+    map.insert(key, set);
+}
+
+fn add_opts<T>(a: Option<T>, b: Option<T>) -> Option<T> {
+    a.and_then(|x| b.map(|y| x + y))
 }
