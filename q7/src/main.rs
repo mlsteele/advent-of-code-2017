@@ -16,7 +16,7 @@ fn main() {
 fn main2() -> Result<()> {
     let intxt = read_file("input.txt")?;
     let shouts = parse(&intxt)?;
-    let answer = q7p2(shouts);
+    let answer = q7p2(shouts)?;
     println!("{}", answer);
     Ok(())
 }
@@ -72,7 +72,7 @@ fn q7p1(shouts: Shouts) -> Name {
 }
 
 #[allow(dead_code)]
-fn q7p2(shouts: Shouts) -> i64 {
+fn q7p2(shouts: Shouts) -> Result<i64> {
     // X supports {Ys}
     let mut supports: HashMap<Name, HashSet<Name>> = HashMap::new();
     // X weighs y
@@ -99,6 +99,10 @@ fn q7p2(shouts: Shouts) -> i64 {
         }
     }
 
+    for (name, substack_weight) in stackweights.iter() {
+        println!("stackweight {}: {}", name, substack_weight);
+    }
+
     // for x in stackweights.iter() {
     //     println!("{:?}", x);
     // }
@@ -119,18 +123,23 @@ fn q7p2(shouts: Shouts) -> i64 {
                 // Not all children have been checked yet
                 continue
             }
-            let h: Vec<(i64, usize)> = histogram(supportees.iter().map(|s| weights[s]));
-            println!("h {}: {:?}", name, h);
+            let h: Vec<(i64, usize)> = histogram(supportees.iter().map(|s| stackweights[s]));
+            println!("hist {}: {:?}", name, h);
             if h.len() == 1 {
                 // Balanced
                 checked.insert(name);
                 continue
             }
-            panic!("no good dude {}: {:?}", name, h)
+            println!("unbalanced: {}", name);
+            if h.len() != 2 {
+                return Err("too many mismatches".to_owned());
+            }
+            let delta = h[1].0 - h[0].0;
+            return Ok();
         }
     }
 
-    return -1;
+    return Err("no imbalances detected".to_owned())
 }
 
 /// Add `val` to the the set at `map[key]`
