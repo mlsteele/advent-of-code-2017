@@ -1,4 +1,5 @@
 use std::collections::{HashMap,HashSet};
+use std::hash::Hash;
 
 type Name = String;
 type Shouts = Vec<(Name, i64, Vec<Name>)>;
@@ -15,7 +16,7 @@ fn main() {
 fn main2() -> Result<()> {
     let intxt = read_file("input.txt")?;
     let shouts = parse(&intxt)?;
-    let answer = q7p1(shouts);
+    let answer = q7p2(shouts);
     println!("{}", answer);
     Ok(())
 }
@@ -71,39 +72,73 @@ fn q7p1(shouts: Shouts) -> Name {
 }
 
 #[allow(dead_code)]
-fn q7p2(shouts: Shouts) {
+fn q7p2(shouts: Shouts) -> i64 {
     // X supports {Ys}
     let mut supports: HashMap<Name, HashSet<Name>> = HashMap::new();
     // X weighs y
-    let mut weight: HashMap<Name, i64> = HashMap::new();
-    for (name, weight, supportees) in shouts {
-        weight.insert(name, weight);
+    let mut weights: HashMap<Name, i64> = HashMap::new();
+    for (name, weight, supportees) in shouts.iter().cloned() {
+        weights.insert(name.clone(), weight);
         for supportee in supportees.iter() {
-            merge(supports, name, supportees);
+            merge(&mut supports, name.clone(), supportee.to_owned());
         }
     }
 
     // X's subtree weights y
-    let mut cumweight: HashMap<Name, i64> = HashSet::new();
-    while cumweight.len() < shouts.len() {
-        for (name, weight, supportees) in shouts {
-            let cw = supportees.iter().map(|child| {
-                cumweight.get(child)
+    let mut stackweights: HashMap<Name, i64> = HashMap::new();
+    while stackweights.len() < shouts.len() {
+        for (name, weight, supportees) in shouts.iter().cloned() {
+            let substack_weight = supportees.iter().map(|child| {
+                stackweights.get(child)
             }).fold(Some(0), |acc, child_weight| {
-                add_opts(acc, child_weight)
+                add_opts(acc, child_weight.cloned())
             });
-            if let Some(cw) = cw {
-                cumweight.insert(name, cw);
+            if let Some(substack_weight) = substack_weight {
+                stackweights.insert(name, weight + substack_weight);
             }
         }
     }
+
+    // for x in stackweights.iter() {
+    //     println!("{:?}", x);
+    // }
+
+    let mut checked = HashSet::new();
+    while checked.len() < shouts.len() {
+        for (name, _, supportees) in shouts.iter().cloned() {
+            if checked.contains(&name) {
+                // Already checked
+                continue
+            }
+            if supportees.len() == 0 {
+                // Leaf node is auto-checked
+                checked.insert(name);
+                continue
+            }
+            if !supportees.iter().all(|s| checked.contains(s)) {
+                // Not all children have been checked yet
+                continue
+            }
+            let h: Vec<(i64, usize)> = histogram(supportees.iter().map(|s| weights[s]));
+            println!("h {}: {:?}", name, h);
+            if h.len() == 1 {
+                // Balanced
+                checked.insert(name);
+                continue
+            }
+            panic!("no good dude {}: {:?}", name, h)
+        }
+    }
+
+    return -1;
 }
 
 /// Add `val` to the the set at `map[key]`
-fn merge<M,K,V>(&mut map: M, key: K, val: V)
-    where M: HashMap<K, HashSet<V>>
+fn merge<K,V>(map: &mut HashMap<K, HashSet<V>>, key: K, val: V)
+    where K: Eq + Hash,
+          V: Eq + Hash
 {
-    if let Some(set) = map.get_mut(key) {
+    if let Some(set) = map.get_mut(&key) {
         set.insert(val);
         return;
     }
@@ -112,6 +147,21 @@ fn merge<M,K,V>(&mut map: M, key: K, val: V)
     map.insert(key, set);
 }
 
-fn add_opts<T>(a: Option<T>, b: Option<T>) -> Option<T> {
+fn add_opts(a: Option<i64>, b: Option<i64>) -> Option<i64> {
     a.and_then(|x| b.map(|y| x + y))
+}
+
+/// Create a histogram of frequency.
+/// Returns a list of number of occurrences, sorted by ascending count.
+fn histogram<T,I>(items: I) -> Vec<(T, usize)>
+    where T: Eq + Hash + Clone,
+          I: IntoIterator<Item=T>
+{
+    let counts = items.into_iter().fold(HashMap::new(), |mut acc, x| {
+        *acc.entry(x).or_insert(0) += 1;
+        acc
+    });
+    let mut res: Vec<(T, usize)> = counts.iter().map(|(v, c)| (v.clone(), c.clone())).collect();
+    res.sort_by_key(|&(_, count)| count);
+    res
 }
