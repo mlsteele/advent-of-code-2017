@@ -6,6 +6,10 @@ type Shouts = Vec<(Name, i64, Vec<Name>)>;
 
 type Result<T> = std::result::Result<T, String>;
 
+fn e<T>(msg: &str) -> Result<T> {
+    return Err(msg.to_owned());
+}
+
 fn main() {
     if let Err(err) = main2() {
         eprintln!("Error: {}", err);
@@ -71,8 +75,17 @@ fn q7p1(shouts: Shouts) -> Name {
     (*diff.first().unwrap()).to_owned()
 }
 
-#[allow(dead_code)]
-fn q7p2(shouts: Shouts) -> Result<i64> {
+struct Summary {
+    pub shouts: Shouts,
+    // X weighs Y
+    pub weights: HashMap<Name, i64>,
+    // X supports [Y]
+    pub supports: HashMap<Name, HashSet<Name>>,
+    // X's subtree weighs y
+    pub stackweights: HashMap<Name, i64>,
+}
+
+fn summarize(shouts: Shouts) -> Result<Summary> {
     // X supports {Ys}
     let mut supports: HashMap<Name, HashSet<Name>> = HashMap::new();
     // X weighs y
@@ -99,17 +112,25 @@ fn q7p2(shouts: Shouts) -> Result<i64> {
         }
     }
 
-    for (name, substack_weight) in stackweights.iter() {
-        println!("stackweight {}: {}", name, substack_weight);
-    }
+    Ok(Summary{
+        shouts: shouts,
+        weights: weights,
+        supports: supports,
+        stackweights: stackweights,
+    })
+}
 
-    // for x in stackweights.iter() {
-    //     println!("{:?}", x);
-    // }
+enum BalancedResult {
+    Balanced,
+    Unbalanced(Name),
+}
 
+use BalancedResult::*;
+
+fn is_balanced(z: &Summary) -> Result<BalancedResult> {
     let mut checked = HashSet::new();
-    while checked.len() < shouts.len() {
-        for (name, _, supportees) in shouts.iter().cloned() {
+    while checked.len() < z.shouts.len() {
+        for (name, _, supportees) in z.shouts.iter().cloned() {
             if checked.contains(&name) {
                 // Already checked
                 continue
@@ -123,7 +144,47 @@ fn q7p2(shouts: Shouts) -> Result<i64> {
                 // Not all children have been checked yet
                 continue
             }
-            let h: Vec<Group<i64,Name>> = group_by(supportees, |s| stackweights[s]);
+            let h: Vec<Group<i64,Name>> = group_by(supportees, |s| z.stackweights[s]);
+            if h.len() == 1 {
+                // Balanced
+                checked.insert(name);
+                continue
+            }
+            return Ok(Unbalanced(name));
+        }
+    }
+    Ok(Balanced)
+}
+
+#[allow(dead_code)]
+fn q7p2(shouts: Shouts) -> Result<i64> {
+    let z = summarize(shouts)?;
+
+    for (name, substack_weight) in z.stackweights.iter() {
+        println!("stackweight {}: {}", name, substack_weight);
+    }
+
+    if let Balanced = is_balanced(&z)? {
+        return e("tree is already balanced");
+    }
+
+    let mut checked = HashSet::new();
+    while checked.len() < z.shouts.len() {
+        for (name, _, supportees) in z.shouts.iter().cloned() {
+            if checked.contains(&name) {
+                // Already checked
+                continue
+            }
+            if supportees.len() == 0 {
+                // Leaf node is auto-checked
+                checked.insert(name);
+                continue
+            }
+            if !supportees.iter().all(|s| checked.contains(s)) {
+                // Not all children have been checked yet
+                continue
+            }
+            let h: Vec<Group<i64,Name>> = group_by(supportees, |s| z.stackweights[s]);
             println!("hist {}: {:?}", name, h);
             if h.len() == 1 {
                 // Balanced
@@ -135,9 +196,10 @@ fn q7p2(shouts: Shouts) -> Result<i64> {
                 return Err("too many mismatches".to_owned());
             }
             let correctee = &h[0].values[0];
-            let answer = h[1].key;
-            println!("correcting '{}' to {}", correctee, answer);
-            return Ok(answer);
+            let delta = h[1].key - h[0].key;
+            let new_weight = z.weights[correctee] + delta;
+            println!("correcting '{}' to {}", correctee, new_weight);
+            return Ok(new_weight);
         }
     }
 
