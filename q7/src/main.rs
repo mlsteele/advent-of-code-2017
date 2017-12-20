@@ -123,7 +123,7 @@ fn q7p2(shouts: Shouts) -> Result<i64> {
                 // Not all children have been checked yet
                 continue
             }
-            let h: Vec<(i64, usize)> = histogram(supportees.iter().map(|s| stackweights[s]));
+            let h: Vec<Group<i64,Name>> = group_by(supportees, |s| stackweights[s]);
             println!("hist {}: {:?}", name, h);
             if h.len() == 1 {
                 // Balanced
@@ -134,8 +134,10 @@ fn q7p2(shouts: Shouts) -> Result<i64> {
             if h.len() != 2 {
                 return Err("too many mismatches".to_owned());
             }
-            let delta = h[1].0 - h[0].0;
-            return Ok();
+            let correctee = &h[0].values[0];
+            let answer = h[1].key;
+            println!("correcting '{}' to {}", correctee, answer);
+            return Ok(answer);
         }
     }
 
@@ -160,8 +162,9 @@ fn add_opts(a: Option<i64>, b: Option<i64>) -> Option<i64> {
     a.and_then(|x| b.map(|y| x + y))
 }
 
-/// Create a histogram of frequency.
-/// Returns a list of number of occurrences, sorted by ascending count.
+/// Create a histogram of value frequency frequency.
+/// Returns a list of number of grouped items, sorted by ascending count.
+#[allow(dead_code)]
 fn histogram<T,I>(items: I) -> Vec<(T, usize)>
     where T: Eq + Hash + Clone,
           I: IntoIterator<Item=T>
@@ -172,5 +175,36 @@ fn histogram<T,I>(items: I) -> Vec<(T, usize)>
     });
     let mut res: Vec<(T, usize)> = counts.iter().map(|(v, c)| (v.clone(), c.clone())).collect();
     res.sort_by_key(|&(_, count)| count);
+    res
+}
+
+#[derive(Debug)]
+struct Group<K,V> {
+    pub key: K,
+    pub values: Vec<V>
+}
+
+impl<K,V> Group<K,V> {
+    fn new(k: K) -> Self {
+        Self {
+            key: k,
+            values: Vec::new(),
+        }
+    }
+}
+
+/// Group items by key(value). Return groups sorted by ascending count.
+fn group_by<K,V,I,F>(items: I, mut key: F) -> Vec<Group<K,V>>
+    where K: Eq + Hash + Clone,
+          I: IntoIterator<Item=V>,
+          F: FnMut(&V) -> K
+{
+    let mut map = items.into_iter().fold(HashMap::new(), |mut acc, v| {
+        let k = key(&v);
+        acc.entry(k.clone()).or_insert_with(|| Group::new(k)).values.push(v);
+        acc
+    });
+    let mut res: Vec<Group<_,_>> = map.drain().map(|(_, g)| g).collect();
+    res.sort_by_key(|xs| xs.values.len());
     res
 }
