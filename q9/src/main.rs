@@ -1,4 +1,5 @@
 use std::fmt;
+use std::borrow::Borrow;
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -17,7 +18,7 @@ fn main() {
 fn main2() -> Result<()> {
     let intxt = read_file("input.txt")?;
     let instructions = parse(&intxt)?;
-    let answer = q9p1(instructions)?;
+    let answer = q9p2(instructions)?;
     println!("{}", answer);
     Ok(())
 }
@@ -57,8 +58,19 @@ impl fmt::Debug for Group {
     }
 }
 
-#[derive(Debug)]
 struct Junk {
+    // number of characters in this junk
+    count: i64,
+}
+
+impl Junk {
+    fn new() -> Self { Self{ count: 0 } }
+}
+
+impl fmt::Debug for Junk {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "J{}", self.count)
+    }
 }
 
 enum LI {
@@ -94,6 +106,10 @@ impl Parser {
     }
 
     pub fn push(&mut self, c: char) -> Result<()> {
+        if c == ' ' {
+            // skip spaces
+            return Ok(());
+        }
         if let Some(top) = self.top.take() {
             match top {
                 LI::Group(g) => self.push_in_group(c, g),
@@ -125,7 +141,7 @@ impl Parser {
                 self.top = Some(LI::Group(Group::new()));
             },
             '<' => {
-                self.top = Some(LI::Junk(Junk{}));
+                self.top = Some(LI::Junk(Junk::new()));
             },
             c => return e(&format!("unexpected '{}'", c))
         };
@@ -153,7 +169,7 @@ impl Parser {
             },
             '<' => {
                 self.stack.push(g);
-                self.top = Some(LI::Junk(Junk{}));
+                self.top = Some(LI::Junk(Junk::new()));
             },
             ',' => {
                 // Ignore commas. Too lazy to make sure they're correct.
@@ -165,7 +181,7 @@ impl Parser {
         Ok(())
     }
 
-    fn push_in_junk(&mut self, c: char, j: Junk) -> Result<()> {
+    fn push_in_junk(&mut self, c: char, mut j: Junk) -> Result<()> {
         if self.cancel {
             // drop the canceled char
             self.cancel = false;
@@ -187,7 +203,7 @@ impl Parser {
                 }
             }
             _ => {
-                // drop the junk char
+                j.count += 1;
                 self.top = Some(LI::Junk(j));
             }
         };
@@ -214,11 +230,25 @@ fn q9p1(g: Group) -> Result<i64> {
     Ok(score(&g, 1))
 }
 
+fn q9p2(g: Group) -> Result<i64> {
+    println!("{:?}", g);
+    Ok(countjunk(&LI::Group(g)))
+}
+
 fn score(g: &Group, depth: i64) -> i64 {
     let sub: i64 = g.items.iter().filter_map(|g2| match **g2 {
         LI::Group(ref g2) => Some(score(g2, depth+1)),
         LI::Junk(_) => None,
     }).sum();
     depth + sub
+}
+
+fn countjunk<T>(item: &T) -> i64
+    where T: Borrow<LI>
+{
+    match item.borrow() {
+        &LI::Group(ref g) => g.items.iter().map(countjunk).sum(),
+        &LI::Junk(ref j) => j.count,
+    }
 }
 
