@@ -118,7 +118,6 @@ impl std::ops::AddAssign for Pos {
     }
 }
 
-#[allow(dead_code)]
 fn parse(s: &str) -> Result<Vec<Dir>> {
     let mut res = Vec::new();
     for x in s.trim().lines()
