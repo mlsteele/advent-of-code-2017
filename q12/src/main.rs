@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::{HashSet,HashMap};
+use std::collections::{BTreeSet,HashMap};
 use std::hash::Hash;
 
 type Result<T> = std::result::Result<T, String>;
@@ -23,7 +23,7 @@ fn main() {
 fn main2() -> Result<()> {
     let intxt = read_file("input.txt")?;
     let intermediate = parse(&intxt)?;
-    let answer = q12p1(intermediate)?;
+    let answer = q12p2(intermediate)?;
     println!("{}", answer);
     Ok(())
 }
@@ -77,8 +77,30 @@ fn q12p1(input: Vec<(ID, Vec<ID>)>) -> Result<i64> {
     Ok(ns.len() as i64)
 }
 
+#[allow(dead_code)]
+fn q12p2(input: Vec<(ID, Vec<ID>)>) -> Result<i64> {
+    println!("input: {:?}", input);
+    let mut village = Village::new();
+    for (from, tos) in input {
+        for to in tos {
+            village.connect(from, to);
+        }
+    }
+    println!("pipes: {:?}", village.pipes);
+
+    type Group = BTreeSet<ID>;
+    let mut groups: BTreeSet<Group> = BTreeSet::new();;
+
+    for id in village.ids() {
+        let g: Group = village.transitive_neighbors(id);
+        groups.insert(g);
+    }
+
+    Ok(groups.len() as i64)
+}
+
 struct Village {
-    pipes: HashMap<ID, HashSet<ID>>,
+    pipes: HashMap<ID, BTreeSet<ID>>,
 }
 
 impl Village {
@@ -92,12 +114,16 @@ impl Village {
         merge(&mut self.pipes, b, a); // backward connection
     }
 
-    fn neighbors(&self, of: ID) -> HashSet<ID> {
-        self.pipes.get(&of).cloned().unwrap_or_else(|| HashSet::new())
+    fn ids(&self) -> BTreeSet<ID> {
+        self.pipes.keys().cloned().collect()
     }
 
-    fn transitive_neighbors(&self, of: ID) -> HashSet<ID> {
-        let mut res = HashSet::new();
+    fn neighbors(&self, of: ID) -> BTreeSet<ID> {
+        self.pipes.get(&of).cloned().unwrap_or_else(|| BTreeSet::new())
+    }
+
+    fn transitive_neighbors(&self, of: ID) -> BTreeSet<ID> {
+        let mut res = BTreeSet::new();
         res.insert(of);
         loop {
             let mut changed = false;
@@ -114,15 +140,15 @@ impl Village {
 }
 
 /// Add `val` to the the set at `map[key]`
-fn merge<K,V>(map: &mut HashMap<K, HashSet<V>>, key: K, val: V)
+fn merge<K,V>(map: &mut HashMap<K, BTreeSet<V>>, key: K, val: V)
     where K: Eq + Hash,
-          V: Eq + Hash
+          V: Eq + Hash + Ord
 {
     if let Some(set) = map.get_mut(&key) {
         set.insert(val);
         return;
     }
-    let mut set = HashSet::new();
+    let mut set = BTreeSet::new();
     set.insert(val);
     map.insert(key, set);
 }
